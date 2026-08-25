@@ -1,0 +1,21 @@
+# FinVest - Financial Buddy Backend Python Dependencies
+# Install dependencies into your Python environment with:
+#   pip install -r requirements.txt
+
+# Core Web Framework & REST API
+Django>=5.0.0
+djangorestframework>=3.14.0
+
+# Authentication & Security
+djangorestframework-simplejwt>=5.3.1
+
+# Cross-Origin Resource Sharing (CORS)
+django-cors-headers>=4.3.1
+
+# Environment Variables & HTTP Requests
+python-dotenv>=1.0.1
+requests>=2.31.0
+
+# Production WSGI HTTP Server & Static File Serving
+gunicorn>=21.2.0
+whitenoise>=6.6.0

@@ -1,0 +1,197 @@
+import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Shield, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+
+const AdminLogin = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const passwordInputRef = useRef(null);
+  const { login } = useAuth();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
+
+  // Username Regex: 3 to 20 chars, alphanumeric & underscores only
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+
+  const handleUsernameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (!usernameRegex.test(username)) {
+        setError('Username is not proper. Must be 3–20 characters (alphanumeric & underscores only).');
+        addToast('Username is not proper.', 'error');
+      } else {
+        setError('');
+        if (passwordInputRef.current) {
+          passwordInputRef.current.focus();
+        }
+      }
+    }
+  };
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!usernameRegex.test(username)) {
+      setError('Username is not proper. Must be 3–20 characters (alphanumeric & underscores only).');
+      addToast('Username is not proper.', 'error');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await api.post('auth/login/', { username, password });
+      const token = res.data.access;
+
+      const userRes = await api.get('auth/me/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!userRes.data.is_staff) {
+        setError('ACCESS DENIED: Account lacks Administrator permissions.');
+        addToast('Access Denied: Account lacks Administrator permissions.', 'error');
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem('access_token', res.data.access);
+      localStorage.setItem('refresh_token', res.data.refresh);
+      addToast('Administrator Access Granted!', 'success');
+      window.location.href = '/admin';
+    } catch (err) {
+      setError('ACCESS DENIED: Invalid Administrator username or password.');
+      addToast('Invalid Administrator credentials.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem',
+      background: 'var(--bg-gradient)'
+    }}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', border: '1px solid rgba(2, 132, 199, 0.3)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            marginBottom: '1rem',
+            boxShadow: '0 8px 20px rgba(2, 132, 199, 0.4)'
+          }}>
+            <Shield size={28} />
+          </div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Admin Portal Login</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.3rem' }}>
+            Restricted access for system administrators
+          </p>
+        </div>
+
+        {error && (
+          <div style={{
+            background: 'rgba(244, 63, 94, 0.15)',
+            border: '1px solid rgba(244, 63, 94, 0.4)',
+            color: '#f43f5e',
+            padding: '0.85rem',
+            borderRadius: '10px',
+            fontSize: '0.85rem',
+            marginBottom: '1.2rem',
+            textAlign: 'center',
+            fontWeight: 600
+          }}>
+            <AlertCircle size={20} style={{ margin: '0 auto 0.4rem auto', display: 'block' }} />
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleAdminLogin} autoComplete="off" noValidate>
+          <div className="form-group">
+            <label className="form-label">Admin Username</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Enter admin username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={handleUsernameKeyDown}
+              required
+              autoComplete="off"
+              name="admin_login_user_nobrowser"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck="false"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Admin Password</label>
+            <div className="password-input-wrapper">
+              <input
+                ref={passwordInputRef}
+                type="text"
+                className="form-control"
+                placeholder="Enter admin password"
+                style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' }}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="off"
+                name="admin_login_pass_nobrowser"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck="false"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Hide Password' : 'Show Password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ width: '100%', justifyContent: 'center', marginTop: '1rem', padding: '0.8rem' }}
+          >
+            {loading ? 'Verifying Admin Credentials...' : 'Authenticate & Enter Admin Suite'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <button
+            className="btn btn-secondary"
+            style={{ width: '100%', justifyContent: 'center', fontSize: '0.85rem' }}
+            onClick={() => navigate('/portal-select')}
+          >
+            <ArrowLeft size={16} /> Return to Portal Selection
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminLogin;
